@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 struct Session {
-    int max_sessions;
+    int num_active_sessions;
     char* pipe_name;
     clients active_sessions[];
 } Session;
@@ -29,14 +29,18 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+
     char* buffer;
     int op_code;
     char* client_named_pipe_path;
     char* box_name;
+    int max_sessions = atoi(argv[2]);
 
     Session s;
     s.pipe_name = argv[1];
-    s.max_sessions = atoi(argv[2]);
+    s.num_active_sessions = 0;
+
+
 
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
@@ -81,9 +85,31 @@ int main(int argc, char **argv) {
             }
         }
 
+        /* Verificação pipes ativos com o mesmo nome */
+        for(int i = 0; i < s.max_sessions; i++){
+            if(strcmp(s.active_sessions[i].name, client_named_pipe_path) == 0){
+                fprintf(stderr, "[ERR]: pipe already exists: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        /* Verificação sessões ativas */
+        if(s.num_active_sessions == s.max_sessions){
+            fprintf(stderr, "[ERR]: max sessions reached: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+
         switch (op_code){
             /* Criação de processo publisher */        
             case 1:
+                int pipe_pub = open(client_named_pipe_path, O_RDONLY);
+                if (pipe_pub < 0) {
+                    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                
+
 
 
 
@@ -110,7 +136,6 @@ int main(int argc, char **argv) {
     }
 
 
-    /* Criação processos para cada tipo de client*/
     
 
 

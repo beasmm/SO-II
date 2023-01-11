@@ -59,11 +59,14 @@ int main(int argc, char **argv) {
     }
     
     int rx = open(argv[2], O_RDONLY);
-
+    if (rx < 0) {
+        WARN("open failed");
+        return -1;
+    } 
     
-    (void)argc;
-    (void)argv;
-    fprintf(stderr, "usage: pub <register_pipe_name> <box_name>\n");
-    WARN("unimplemented"); // TODO: implement
+
+
+
+
     return -1;
 }
