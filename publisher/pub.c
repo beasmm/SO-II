@@ -30,7 +30,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-
     if (strlen(argv[3]) <= 32){
         char const box_name = argv[3];
     }
@@ -40,7 +39,7 @@ int main(int argc, char **argv) {
     }
 
     uint8_t buf[sizeof(uint8_t) + 256*sizeof(char)+ 32*sizeof(char)] = {0};
-    memcpy(buf, &code, sizeof(uint8_t));
+    memcpy(buf, code, sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), client_named_pipe_path, strlen(client_named_pipe_path));
     memcpy(buf + sizeof(uint8_t) + 256*sizeof(char), argv[3], strlen(argv[3]));
 
@@ -73,7 +72,7 @@ int main(int argc, char **argv) {
         memcpy(mesg, 9, sizeof(uint8_t));
         memcpy(mesg + sizeof(uint8_t), inp, strlen(inp));
 
-        if (write(rx, mesg, sizeof(buf)) < 0) {
+        if (write(rx, mesg, sizeof(mesg)) < 0) {
             WARN("write failed");
             return -1;
         }

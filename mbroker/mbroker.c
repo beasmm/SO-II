@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
 
 
     char* buffer;
+    char* op_code_str;
     int op_code;
     char* client_named_pipe_path;
     char* box_name;
@@ -68,11 +69,12 @@ int main(int argc, char **argv) {
 
         /* Verificação do op_code */
         for(int i = 0; i < strlen(buffer); i++){
-            if(buffer[i] == ' '){
-                op_code = atoi(buffer[i]);
+            if(buffer[i] != '|'){
+                op_code_str = buffer[i];
                 break;
             }
         }
+        op_code = atoi(op_code_str);
         if (op_code < 1){
             fprintf(stderr, "[ERR]: invalid op_code: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
@@ -80,7 +82,7 @@ int main(int argc, char **argv) {
         
         /* Leitura de client_named_pipe_path */
         for(int i = uint8_t; i < strlen(buffer); i++){
-            if(buffer[i] != ' '){
+            if(buffer[i] != '|'){
                 client_named_pipe_path += buffer[i];
             }
             else{
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
         
         /* Leitura de box_name */
         for(int i = uint8_t + 256*sizeof(char); i < strlen(buffer); i++){
-            if(buffer[i] != ' '){
+            if(buffer[i] != '|'){
                 box_name += buffer[i];
             }
             else{
@@ -134,7 +136,7 @@ int main(int argc, char **argv) {
                 s.active_sessions[s.num_active_sessions-1].type = 1;
                 s.active_box[s.num_active_box-1] = box_name;
 
-                
+
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
                     fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
@@ -158,8 +160,51 @@ int main(int argc, char **argv) {
                 }
                 tfs_close(box_name);
                 close(pipe_pub);
+                s.num_active_sessions--;
+                s.num_active_box--;
+                s.active_sessions[s.num_active_sessions-1].name = "";
+                s.active_sessions[s.num_active_sessions-1].type = 0;
+                s.active_box[s.num_active_box-1] = "";
+
             }
+            /* Criação de processo subscriber */
+            case 2:{
+                int pipe_sub = open(client_named_pipe_path, O_RDONLY);
+                if (pipe_sub < 0) {
+                    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                s.num_active_sessions++;
+                s.active_sessions[s.num_active_sessions-1].name = client_named_pipe_path;
+                s.active_sessions[s.num_active_sessions-1].type = 2;
+
+                if(tfs_open(box_name, TFS_O_APPEND) < 0){
+                    fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                if(tfs_read(box_name, buffer, sizeof(buffer)) < 0){
+                    fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+
+
                 
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
