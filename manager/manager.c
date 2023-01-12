@@ -20,8 +20,8 @@ static void print_usage() {
 }
 
 int main(int argc, char **argv) {
-    char* error_message;
-    char* answer;
+    char error_message[1024];
+    char answer[1034];
     
     if(argc < 4) {
         print_usage();
@@ -121,9 +121,11 @@ int main(int argc, char **argv) {
                 fprintf(stdout, "OK\n");
             }
             else{
-                for(int i = 8; i < 1024; i++){
-                    error_message += answer[i];
+                int j = 0
+                for(int i = 8 ; i < 1024; i++){
                     if(answer[i] == "\0") break;
+                    error_message[j] = answer[i];
+                    j++;
                 }
                 fprintf(stdout, "ERROR %s\n", error_message);
             }
