@@ -20,6 +20,9 @@ static void print_usage() {
 }
 
 int main(int argc, char **argv) {
+    char* error_message;
+    char* answer;
+    
     if(argc < 4) {
         print_usage();
         return -1;
@@ -55,7 +58,7 @@ int main(int argc, char **argv) {
 
 
     switch(argv[3]) {
-        case "create":
+        case "create":{
 
             uint8_t buf[sizeof(uint8_t) + 256*sizeof(char)+ 32*sizeof(char)] = {0};
             memcpy(buf, 3, sizeof(uint8_t));
@@ -73,29 +76,24 @@ int main(int argc, char **argv) {
                 exit(EXIT_FAILURE);
             }
 
-            char* answer;
             if(read(rx, answer, 1) < 0) {
                 fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
 
-            
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
+            if(answer[4] == 0){
+                fprintf(stdout, "OK\n");
+            }
+            else{
+                for(int i = 8; i < 1024; i++){
+                    error_message += answer[i];
+                    if(answer[i] == "\0") break;
+                }
+                fprintf(stdout, "ERROR %s\n", error_message);
+            }
             break;
-        case "remove":
+        }
+        case "remove":{
             
             uint8_t buf[sizeof(uint8_t) + 256*sizeof(char)+ 32*sizeof(char)] = {0};
             memcpy(buf, 5, sizeof(uint8_t));
@@ -103,8 +101,34 @@ int main(int argc, char **argv) {
             memcpy(buf + sizeof(uint8_t) + 256*sizeof(char), argv[3], strlen(argv[3]));
 
             
-            write(tx, "remove", 6);
+            if(write(tx, buf, sizeof(buf)) < 0) {
+                fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            
+            int rx = open(argv[2], O_RDONLY);
+            if (rx == -1) {
+                fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            if(read(rx, answer, 1) < 0) {
+                fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+
+            if(answer[4] == 0){
+                fprintf(stdout, "OK\n");
+            }
+            else{
+                for(int i = 8; i < 1024; i++){
+                    error_message += answer[i];
+                    if(answer[i] == "\0") break;
+                }
+                fprintf(stdout, "ERROR %s\n", error_message);
+            }
             break;
+        }
         case "list":
             write(tx, "list", 4);
             break;
