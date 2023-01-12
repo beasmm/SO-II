@@ -13,6 +13,9 @@
 
 int main(int argc, char **argv) {
 
+    char inp[1024];
+
+
     if(argc != 4) {
         fprintf(stderr, "usage: pub <register_pipe_name> <box_name>\n");
         return -1;
@@ -64,7 +67,7 @@ int main(int argc, char **argv) {
         return -1;
     } 
     
-    while (scanf("%s", inp) != EOF) {
+    while(true) {
         uint8_t mesg[sizeof(uint8_t) + 1024*sizeof(char)] = {0};
         memcpy(mesg, 9, sizeof(uint8_t));
         memcpy(mesg + sizeof(uint8_t), inp, strlen(inp));
@@ -72,6 +75,9 @@ int main(int argc, char **argv) {
         if (write(rx, mesg, sizeof(buf)) < 0) {
             WARN("write failed");
             return -1;
+        }
+        if (inp == EOF){
+            break;
         }
     }
     return 0;
