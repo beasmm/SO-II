@@ -136,11 +136,14 @@ int main(int argc, char **argv) {
                         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                         exit(EXIT_FAILURE);
                     }
-                    else if(ret == 0){
+                    if(ret < 0){
                         if(tfs_write(box_name, buffer, sizeof(buffer))){
                             fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                             exit(EXIT_FAILURE);
                         }
+                    }
+                    if(ret == 0){
+                        return 0;
                     }
                 }
                 tfs_close(box_name);
