@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
     } 
     
     while(true) {
+        scanf("%s", inp);
         uint8_t mesg[sizeof(uint8_t) + 1024*sizeof(char)] = {0};
         memcpy(mesg, 9, sizeof(uint8_t));
         memcpy(mesg + sizeof(uint8_t), inp, strlen(inp));

@@ -80,16 +80,20 @@ int main(int argc, char **argv) {
         
         /* Leitura de client_named_pipe_path */
         for(int i = uint8_t; i < strlen(buffer); i++){
-            if(buffer[i] == ' '){
-                client_named_pipe_path = buffer[i];
+            if(buffer[i] != ' '){
+                client_named_pipe_path += buffer[i];
+            }
+            else{
                 break;
             }
         }
         
         /* Leitura de box_name */
         for(int i = uint8_t + 256*sizeof(char); i < strlen(buffer); i++){
-            if(buffer[i] == ' '){
-                box_name = buffer[i];
+            if(buffer[i] != ' '){
+                box_name += buffer[i];
+            }
+            else{
                 break;
             }
         }
@@ -124,7 +128,13 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
+                s.num_active_sessions++;
+                s.num_active_box++;
+                s.active_sessions[s.num_active_sessions-1].name = client_named_pipe_path;
+                s.active_sessions[s.num_active_sessions-1].type = 1;
+                s.active_box[s.num_active_box-1] = box_name;
 
+                
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
                     fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
