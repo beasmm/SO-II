@@ -56,12 +56,14 @@ int main(int argc, char **argv) {
 
     int counter = 0;
     while (true) {
-        char *buffer;
-        if (read(rx, buffer, sizeof(buf)) < 0) {
+        char buffer[1024];
+        char message[1024];
+        if (read(rx, buffer, sizeof(buffer)) < 0) {
             WARN("read failed");
             return -1;
         }
-        printf("%s\n", buffer + 4);
+        strcpy(message, buffer + 4)
+        fprintf(stdout, "%s\n", message);
         counter++;
         signal(SIGINT, SIG_DFL);
     }
