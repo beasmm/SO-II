@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
 
         switch (op_code){
             /* Criação de processo publisher */        
-            case 1:
+            case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
                     if(strcmp(s.active_box[i], box_name) == 0){
                         fprintf(stderr, "[ERR]: box already active: %s\n", strerror(errno));
@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
                 }
                 tfs_close(box_name);
                 close(pipe_pub);
-
+            }
                 
 
 
