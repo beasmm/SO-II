@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
             WARN("read failed");
             return -1;
         }
-        strcpy(message, buffer + 4)
+        strcpy(message, buffer + 4);
         fprintf(stdout, "%s\n", message);
         counter++;
         signal(SIGINT, SIG_DFL);
