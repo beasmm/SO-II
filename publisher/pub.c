@@ -13,6 +13,9 @@
 
 int main(int argc, char **argv) {
 
+    char inp[1024];
+
+
     if(argc != 4) {
         fprintf(stderr, "usage: pub <register_pipe_name> <box_name>\n");
         return -1;
@@ -27,7 +30,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-
     if (strlen(argv[3]) <= 32){
         char const box_name = argv[3];
     }
@@ -37,7 +39,7 @@ int main(int argc, char **argv) {
     }
 
     uint8_t buf[sizeof(uint8_t) + 256*sizeof(char)+ 32*sizeof(char)] = {0};
-    memcpy(buf, &code, sizeof(uint8_t));
+    memcpy(buf, code, sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), client_named_pipe_path, strlen(client_named_pipe_path));
     memcpy(buf + sizeof(uint8_t) + 256*sizeof(char), argv[3], strlen(argv[3]));
 
@@ -58,15 +60,25 @@ int main(int argc, char **argv) {
         return -1;
     }
     
-    int rx = open(argv[2], O_RDONLY);
+    int rx = open(argv[2], O_WRONLY);
     if (rx < 0) {
         WARN("open failed");
         return -1;
     } 
     
+    while(true) {
+        scanf("%s", inp);
+        uint8_t mesg[sizeof(uint8_t) + 1024*sizeof(char)] = {0};
+        memcpy(mesg, 9, sizeof(uint8_t));
+        memcpy(mesg + sizeof(uint8_t), inp, strlen(inp));
 
-
-
-
-    return -1;
+        if (write(rx, mesg, sizeof(mesg)) < 0) {
+            WARN("write failed");
+            return -1;
+        }
+        if (inp == EOF){
+            break;
+        }
+    }
+    return 0;
 }
