@@ -58,15 +58,21 @@ int main(int argc, char **argv) {
         return -1;
     }
     
-    int rx = open(argv[2], O_RDONLY);
+    int rx = open(argv[2], O_WRONLY);
     if (rx < 0) {
         WARN("open failed");
         return -1;
     } 
     
+    while (scanf("%s", inp) != EOF) {
+        uint8_t mesg[sizeof(uint8_t) + 1024*sizeof(char)] = {0};
+        memcpy(mesg, 9, sizeof(uint8_t));
+        memcpy(mesg + sizeof(uint8_t), inp, strlen(inp));
 
-
-
-
-    return -1;
+        if (write(rx, mesg, sizeof(buf)) < 0) {
+            WARN("write failed");
+            return -1;
+        }
+    }
+    return 0;
 }

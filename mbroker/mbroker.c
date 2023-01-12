@@ -10,11 +10,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fs/operations.h>
 
 struct Session {
     int num_active_sessions;
     char* pipe_name;
     clients active_sessions[];
+    char* active_box[];
+    int num_active_box;
 } Session;
 
 struct clients{
@@ -48,6 +51,12 @@ int main(int argc, char **argv) {
     }
 
     int fd = open(s.pipe_name, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    tfs_init();
+
 
     while(true){
         /* Leitura de pedidos de registo */
@@ -103,13 +112,41 @@ int main(int argc, char **argv) {
         switch (op_code){
             /* Criação de processo publisher */        
             case 1:
+                for(int i = 0; i < s.num_active_box; i++){
+                    if(strcmp(s.active_box[i], box_name) == 0){
+                        fprintf(stderr, "[ERR]: box already active: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
+                }           
+
                 int pipe_pub = open(client_named_pipe_path, O_RDONLY);
                 if (pipe_pub < 0) {
                     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
-                
 
+                if(tfs_open(box_name, TFS_O_APPEND) < 0){
+                    fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+
+                while(true){
+                    ssize_t ret = read(pipe_pub, buffer, sizeof(buffer));
+                    if(ret < 0) {
+                        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
+                    else if(ret == 0){
+                        if(tfs_write(box_name, buffer, sizeof(buffer))){
+                            fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                }
+                tfs_close(box_name);
+                close(pipe_pub);
+
+                
 
 
 
