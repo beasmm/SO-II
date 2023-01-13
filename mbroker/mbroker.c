@@ -21,20 +21,21 @@ typedef struct Boxes {
 } Box;
 
 
+typedef char pipename_t[256];
+
 typedef struct Sessions {
     int num_active_sessions;
-    char *active_sessions[256];
+    pipename_t* active_sessions;
     char* pipe_name;
     Box active_box[256];
     int num_active_box;
 } Session;
 
 
-char* format_msg(char* buf, char msg[]){
+void format_msg(uint8_t buf[], char msg[]){
     memcpy(buf, "10", sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
     memcpy(buf + sizeof(uint8_t)+sizeof(char), msg, strlen(msg));
-    return buf;
 } 
 
 int main(int argc, char **argv) {
@@ -42,7 +43,6 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: mbroker <pipename>\n");
         return -1;
     }
-
 
     char* buffer;
     int op_code;
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     s.num_active_sessions = 0;
     s.num_active_box = 0;
     s.pipe_name = argv[1];
-    s.active_sessions = malloc(max_sessions * ((sizeof(char*))*256)); 
+    s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
 
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
@@ -71,6 +71,8 @@ int main(int argc, char **argv) {
 
 
     while(true){
+        int tester = 0;
+        
         /* Leitura de pedidos de registo */
         if(read(fd, buffer, sizeof(buffer)) < 0) {
             fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
@@ -88,7 +90,7 @@ int main(int argc, char **argv) {
 
         /* Verificação pipes ativos com o mesmo nome */
         for(int i = 0; i < s.num_active_sessions; i++){
-            if(strcmp(s.active_sessions[i], client_named_pipe_path) == 0){ // check chekc 
+            if(strcmp(s.active_sessions[i], client_named_pipe_path) == 0){ 
                 fprintf(stderr, "[ERR]: pipe already exists: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
@@ -106,7 +108,7 @@ int main(int argc, char **argv) {
             /* Processo publisher */        
             case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
-                    if(strcmp(s.active_box[i], box_name) == 0 && s.active_box[i].pub_activity == 1){
+                    if(strcmp(s.active_box[i].name, box_name) == 0 && s.active_box[i].pub_activity == 1){
                         fprintf(stderr, "[ERR]: box already active: %s\n", strerror(errno));
                         exit(EXIT_FAILURE);
                     }
@@ -124,7 +126,8 @@ int main(int argc, char **argv) {
                 s.num_active_box++;
 
 
-                if(tfs_open(box_name, TFS_O_APPEND) < 0){
+                int fhandle = tfs_open(box_name, TFS_O_APPEND);
+                if (fhandle < 0) {
                     fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
@@ -136,7 +139,7 @@ int main(int argc, char **argv) {
                         exit(EXIT_FAILURE);
                     }
                     if(ret < 0){
-                        if(tfs_write(box_name, buffer, sizeof(buffer))){
+                        if(tfs_write(fhandle, buffer, sizeof(buffer))){
                             fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                             exit(EXIT_FAILURE);
                         }
@@ -145,12 +148,13 @@ int main(int argc, char **argv) {
                         return 0;
                     }
                 }
-                tfs_close(box_name);
+                tfs_close(fhandle);
                 close(pipe_pub);
                 s.num_active_sessions--;
                 s.num_active_box--;
                 s.active_box[s.num_active_box].name = box_name;
                 s.active_box[s.num_active_box].pub_activity = 0;
+                break;
             }
             
             /* Processo subscriber */
@@ -163,52 +167,55 @@ int main(int argc, char **argv) {
                 
                 s.num_active_sessions++;
                 for(int i = 0; i < s.num_active_box; i++){
-                    if(strcmp(s.active_box[i], box_name) == 0){
-                        s.active_box[i].sub_activity++;
-                        break;
-                    }
-                    else{
-                        s.active_box[s.num_active_box].name = box_name;
-                        s.active_box[s.num_active_box].sub_activity = 1;
-                        s.num_active_box++;
+                    if(strcmp(s.active_box[i].name, box_name) == 0){
+                        s.active_box[i].num_active_subs++;
+                        tester = 1;
                         break;
                     }
                 }
+                if(tester == 0){
+                    s.active_box[s.num_active_box].name = box_name;
+                    s.active_box[s.num_active_box].num_active_subs = 1;
+                    s.num_active_box++;
+                }
 
 
-                if(tfs_open(box_name, TFS_O_APPEND) < 0){
+                int fhandle = tfs_open(box_name, TFS_O_APPEND);
+                if (fhandle < 0) {
                     fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
-                if(tfs_read(box_name, msg, sizeof(msg)) < 0){
+                if(tfs_read(fhandle, msg, sizeof(msg)) < 0){
                     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
 
                 uint8_t buf[sizeof(uint8_t) + 1025*sizeof(char)] = {0};
-                buf = format_msg(buf, msg);
+                format_msg(buf, msg);
 
-                while(write(client_named_pipe_path, buf, sizeof(buf)) >= 0){
-                    if(tfs_read(box_name, msg, sizeof(msg)) < 0){
+                while(write(pipe_sub, buf, sizeof(buf)) >= 0){
+                    if(tfs_read(fhandle, msg, sizeof(msg)) < 0){
                         fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                         exit(EXIT_FAILURE);
                     }
-                    char *new_box = box_name + 1024;
-                    buf = format_msg(buf, msg);
+                    format_msg(buf, msg);
                 }
 
-                tfs_close(box_name);
+                tfs_close(fhandle);
                 close(pipe_sub);
                 s.num_active_sessions--;
                 for(int i = 0; i < s.num_active_box; i++){
-                    if(strcmp(s.active_box[i], box_name) == 0){
-                        s.active_box[i].sub_activity--;
+                    if(strcmp(s.active_box[i].name, box_name) == 0){
+                        s.active_box[i].num_active_subs--;
+                        if(s.active_box[i].num_active_subs == 0 && s.active_box[i].pub_activity == 0){
+                            s.active_box[i].name = NULL;
+                            s.num_active_box--;
+                        }
+                        break;
                     }
-                    if(s.active_box[i].sub_activity == 0 && s.active_box[i].pub_activity == 0){
-                        s.active_box[i].name = NULL;
-                        s.num_active_box--;
-                    }                    
+
                 } 
+                break;
             }
         
             default:
