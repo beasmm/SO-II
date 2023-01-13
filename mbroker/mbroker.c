@@ -98,7 +98,8 @@ int main(int argc, char **argv) {
 
 
         switch (op_code){
-            /* Criação de processo publisher */        
+            
+            /* Processo publisher */        
             case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
                     if(strcmp(s.active_box[i], box_name) == 0 && s.active_box[i].pub_activity == 1){
@@ -148,7 +149,7 @@ int main(int argc, char **argv) {
                 s.active_box[s.num_active_box].pub_activity = 0;
             }
             
-            /* Criação de processo subscriber */
+            /* Processo subscriber */
             case 2:{
                 int pipe_sub = open(client_named_pipe_path, O_WRONLY);
                 if (pipe_sub < 0) {
@@ -205,27 +206,6 @@ int main(int argc, char **argv) {
                     }                    
                 } 
             }
-
-            /* Criação de processo manager */
-            case 3:
-                
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                break;
         
             default:
                 break;
