@@ -12,7 +12,7 @@
 #include <unistd.h>
 
 typedef struct box{
-    char box_name[32];
+    char box_name[32] = "";
     uint64_t box_size;
     uint64_t n_publishers;
     uint64_t n_subscribers;
@@ -197,11 +197,17 @@ int main(int argc, char **argv) {
                 j++;
             }
 
-            sort_boxes(box_list, j);
 
-            for(int i = 0; i < j; i++){
-                fprintf(stdout, "%s %zu %zu %zu\n", box_list[i].box_name, box_list[i].box_name,
-                    box_list[i].n_publishers, box_list[i].n_subscribers);
+            if(strcmp(box_list[0].box_name, "") == 0){
+                fprintf(stdout, "NO BOXES FOUND\n");                
+                break;
+            }
+            else{
+                sort_boxes(box_list, j);
+                for(int i = 0; i < j; i++){
+                    fprintf(stdout, "%s %zu %zu %zu\n", box_list[i].box_name, box_list[i].box_name,
+                        box_list[i].n_publishers, box_list[i].n_subscribers);
+                }
             }
             break;
         }
@@ -209,5 +215,7 @@ int main(int argc, char **argv) {
             print_usage();
             break;
     }
+    close(tx);
+    close(rx);
     return 0;
 }

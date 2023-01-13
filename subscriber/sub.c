@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    close(tx);
     int rx = open(argv[1], O_RDONLY);
     if (rx < 0) {
         WARN("open failed");
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
         counter++;
         signal(SIGINT, SIG_DFL);
     }
-
+    close(rx);
     printf("%i\n", counter);
     return 0;
 }

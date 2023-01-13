@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
         return -1;
     }
     
+    close(tx);
     int rx = open(argv[2], O_WRONLY);
     if (rx < 0) {
         WARN("open failed");
@@ -83,5 +84,6 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    close(rx);
     return 0;
 }
