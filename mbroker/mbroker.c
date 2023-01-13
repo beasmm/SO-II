@@ -147,6 +147,7 @@ int main(int argc, char **argv) {
                 s.active_box[s.num_active_box].name = box_name;
                 s.active_box[s.num_active_box].pub_activity = 0;
             }
+            
             /* Criação de processo subscriber */
             case 2:{
                 int pipe_sub = open(client_named_pipe_path, O_WRONLY);
@@ -204,6 +205,10 @@ int main(int argc, char **argv) {
                     }                    
                 } 
             }
+
+            /* Criação de processo manager */
+            case 3:
+                
 
 
 
