@@ -12,18 +12,19 @@
 #include <unistd.h>
 #include <fs/operations.h>
 
-struct Session {
+typedef struct Clients{
+    int type;
+    char* name;
+} Client;
+
+typedef struct Sessions {
     int num_active_sessions;
     char* pipe_name;
-    clients active_sessions[];
+    Client active_sessions[];
     char* active_box[];
     int num_active_box;
 } Session;
 
-struct clients{
-    int type;
-    char* name;
-} clients;
 
 
 int main(int argc, char **argv) {
