@@ -12,20 +12,26 @@
 #include <unistd.h>
 #include <fs/operations.h>
 
-typedef struct Clients{
-    int type;
-    char* name;
-} Client;
 
-typedef struct Sessions {
+typedef struct Session {
     int num_active_sessions;
     char* pipe_name;
-    Client *active_sessions;
-    char *active_box;
+    Boxes active_box[256];
     int num_active_box;
 } Session;
 
+typedef struct Boxes {
+    char* name;
+    int num_active_subs;
+    int pub_activity = 0; 
+} Boxes;
 
+char* format_msg(char* buf, char msg[]){
+    memcpy(buf, 10, sizeof(uint8_t));
+    memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+    memcpy(buf + sizeof(uint8_t)+sizeof(char), msg, strlen(msg));
+    return buf;
+} 
 
 int main(int argc, char **argv) {
     if(argc != 3) {
@@ -40,6 +46,7 @@ int main(int argc, char **argv) {
     char* client_named_pipe_path;
     char* box_name;
     int max_sessions = atoi(argv[2]);
+    char msg[1024];
 
     Session s;
     s.pipe_name = argv[1];
@@ -57,7 +64,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    // tfs_init();
+    tfs_init(NULL);
 
 
     while(true){
@@ -135,7 +142,7 @@ int main(int argc, char **argv) {
                 s.num_active_box++;
                 s.active_sessions[s.num_active_sessions-1].name = client_named_pipe_path;
                 s.active_sessions[s.num_active_sessions-1].type = 1;
-                s.active_box[s.num_active_box-1] = box_name;
+                s.active_box[s.num_active_box-1].name = box_name;
 
 
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
@@ -170,23 +177,39 @@ int main(int argc, char **argv) {
             }
             /* Criação de processo subscriber */
             case 2:{
-                int pipe_sub = open(client_named_pipe_path, O_RDONLY);
+                int pipe_sub = open(client_named_pipe_path, O_WRONLY);
                 if (pipe_sub < 0) {
                     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
+                
                 s.num_active_sessions++;
-                s.active_sessions[s.num_active_sessions-1].name = client_named_pipe_path;
-                s.active_sessions[s.num_active_sessions-1].type = 2;
+                s.num_active_box++;
+                s.active_box[num_active_box-1].name = box_name;
+                s.active_box[num_active_box-1].num_active_subs++;
+
 
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
                     fprintf(stderr, "[ERR]: box open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
-                if(tfs_read(box_name, buffer, sizeof(buffer)) < 0){
+                if(tfs_read(box_name, msg, sizeof(msg)) < 0){
                     fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
+
+                uint8_t buf[sizeof(uint8_t) + 1025*sizeof(char)] = {0};
+                buf = format_msg(buf, msg);
+
+                while(write(client_named_pipe_path, buf, sizeof(buf)) >= 0){
+                    if(tfs_read(box_name, msg, sizeof(msg)) < 0){
+                        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
+                    char *new_box = box_name + 1024;
+                    buf = format_msg(buf, msg);
+                }
+
 
 
                 
