@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,21 +14,24 @@
 #include <fs/operations.h>
 
 
-typedef struct Session {
-    int num_active_sessions = 0;
-    char* pipe_name;
-    Boxes active_box[256];
-    int num_active_box = 0;
-} Session;
-
 typedef struct Boxes {
     char* name;
-    int num_active_subs = 0;
-    int pub_activity = 0; 
-} Boxes;
+    int num_active_subs;
+    int pub_activity; 
+} Box;
+
+
+typedef struct Sessions {
+    int num_active_sessions;
+    char *active_sessions[256];
+    char* pipe_name;
+    Box active_box[256];
+    int num_active_box;
+} Session;
+
 
 char* format_msg(char* buf, char msg[]){
-    memcpy(buf, 10, sizeof(uint8_t));
+    memcpy(buf, "10", sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
     memcpy(buf + sizeof(uint8_t)+sizeof(char), msg, strlen(msg));
     return buf;
@@ -48,10 +52,10 @@ int main(int argc, char **argv) {
     char msg[1024];
 
     Session s;
-    s.pipe_name = argv[1];
     s.num_active_sessions = 0;
-
-
+    s.num_active_box = 0;
+    s.pipe_name = argv[1];
+    s.active_sessions = malloc(max_sessions * ((sizeof(char*))*256)); 
 
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
@@ -73,7 +77,7 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
         }
 
-        char* token = strtok(answer, "|");
+        char* token = strtok(buffer, "|");
         for (int i = 0; token != NULL; i++) {
             if(i == 0) op_code = atoi(token);
             if(i == 2) client_named_pipe_path = token;
@@ -83,8 +87,8 @@ int main(int argc, char **argv) {
         
 
         /* Verificação pipes ativos com o mesmo nome */
-        for(int i = 0; i < max_sessions; i++){
-            if(strcmp(s.active_sessions[i].name, client_named_pipe_path) == 0){
+        for(int i = 0; i < s.num_active_sessions; i++){
+            if(strcmp(s.active_sessions[i], client_named_pipe_path) == 0){ // check chekc 
                 fprintf(stderr, "[ERR]: pipe already exists: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
@@ -98,7 +102,8 @@ int main(int argc, char **argv) {
 
 
         switch (op_code){
-            /* Criação de processo publisher */        
+            
+            /* Processo publisher */        
             case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
                     if(strcmp(s.active_box[i], box_name) == 0 && s.active_box[i].pub_activity == 1){
@@ -148,7 +153,7 @@ int main(int argc, char **argv) {
                 s.active_box[s.num_active_box].pub_activity = 0;
             }
             
-            /* Criação de processo subscriber */
+            /* Processo subscriber */
             case 2:{
                 int pipe_sub = open(client_named_pipe_path, O_WRONLY);
                 if (pipe_sub < 0) {
@@ -205,27 +210,6 @@ int main(int argc, char **argv) {
                     }                    
                 } 
             }
-
-            /* Criação de processo manager */
-            case 3:
-                
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                break;
         
             default:
                 break;
