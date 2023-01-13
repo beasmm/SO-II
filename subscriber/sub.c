@@ -4,8 +4,21 @@
 #include <string.h>
 #include <signal.h>
 
+int counter = 0;
+
+void sigint_handler(int signum) {
+    if (signum == SIGINT) {
+        printf("%i messages received\n", &counter);
+        exit(0);
+    }
+}
 
 int main(int argc, char **argv) {
+
+    struct sigaction act;
+    act.sa_handler = &sigint_handler;
+    sigaction(SIGINT, &act, NULL);
+
 
     if (argc != 4) {
         fprintf(stderr, "usage: sub <register_pipe_name> <box_name>\n");
@@ -57,7 +70,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    int counter = 0;
     while (true) {
         char buffer[1024];
         char message[1024];
@@ -67,10 +79,6 @@ int main(int argc, char **argv) {
         }
         strcpy(message, buffer + 4);
         fprintf(stdout, "%s\n", message);
-        counter++;
-        signal(SIGINT, SIG_DFL);
     }
-    close(rx);
-    printf("%i\n", counter);
     return 0;
 }
