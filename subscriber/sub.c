@@ -27,10 +27,12 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    uint8_t buf[sizeof(uint8_t) + 256 * sizeof(char) + 32 * sizeof(char)] = {0};
+    uint8_t buf[sizeof(uint8_t) + 257 * sizeof(char) + 33 * sizeof(char)] = {0};
     memcpy(buf, &code, sizeof(uint8_t));
-    memcpy(buf + sizeof(uint8_t), client_named_pipe_path, strlen(client_named_pipe_path));
-    memcpy(buf + sizeof(uint8_t) + 256 * sizeof(char), argv[3], strlen(argv[3]));
+    memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+    memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, strlen(client_named_pipe_path));
+    memcpy(buf + sizeof(uint8_t) + 257 * sizeof(char), "|", sizeof(char));
+    memcpy(buf + sizeof(uint8_t) + 258 * sizeof(char), argv[3], strlen(argv[3]));
 
     int tx = open(argv[1], O_WRONLY);
     if (tx < 0) {
