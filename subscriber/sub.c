@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if (read(tx, buf, sizeof(buf)) < 0) {
+    if (write(tx, buf, sizeof(buf)) < 0) {
         WARN("read failed");
         return -1;
     }
