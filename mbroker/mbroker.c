@@ -14,15 +14,15 @@
 
 
 typedef struct Session {
-    int num_active_sessions;
+    int num_active_sessions = 0;
     char* pipe_name;
     Boxes active_box[256];
-    int num_active_box;
+    int num_active_box = 0;
 } Session;
 
 typedef struct Boxes {
     char* name;
-    int num_active_subs;
+    int num_active_subs = 0;
     int pub_activity = 0; 
 } Boxes;
 
@@ -41,7 +41,6 @@ int main(int argc, char **argv) {
 
 
     char* buffer;
-    char op_code_str[3];
     int op_code;
     char* client_named_pipe_path;
     char* box_name;
@@ -74,42 +73,17 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
         }
 
-
-        /* Verificação do op_code */
-        for(int i = 0; i < strlen(buffer); i++){
-            if(buffer[i] != '|'){
-                op_code_str[i] = buffer[i];
-                break;
-            }
-        }
-        op_code = atoi(op_code_str);
-        if (op_code < 1){
-            fprintf(stderr, "[ERR]: invalid op_code: %s\n", strerror(errno));
-            exit(EXIT_FAILURE);
-        }
+        char* token = strtok(answer, "|");
+        for (int i = 0; token != NULL; i++) {
+            if(i == 0) op_code = atoi(token);
+            if(i == 2) client_named_pipe_path = token;
+            if(i == 3) box_name = token;
+            token = strtok(NULL, "|");
+        }       
         
-        /* Leitura de client_named_pipe_path */
-        for(int i = sizeof(uint8_t); i < strlen(buffer); i++){
-            if(buffer[i] != '|'){
-                client_named_pipe_path += buffer[i];
-            }
-            else{
-                break;
-            }
-        }
-        
-        /* Leitura de box_name */
-        for(int i = uint8_t + 256*sizeof(char); i < strlen(buffer); i++){
-            if(buffer[i] != '|'){
-                box_name += buffer[i];
-            }
-            else{
-                break;
-            }
-        }
 
         /* Verificação pipes ativos com o mesmo nome */
-        for(int i = 0; i < s.max_sessions; i++){
+        for(int i = 0; i < max_sessions; i++){
             if(strcmp(s.active_sessions[i].name, client_named_pipe_path) == 0){
                 fprintf(stderr, "[ERR]: pipe already exists: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
@@ -117,7 +91,7 @@ int main(int argc, char **argv) {
         }
 
         /* Verificação sessões ativas */
-        if(s.num_active_sessions == s.max_sessions){
+        if(s.num_active_sessions == max_sessions){
             fprintf(stderr, "[ERR]: max sessions reached: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
         }
@@ -127,7 +101,7 @@ int main(int argc, char **argv) {
             /* Criação de processo publisher */        
             case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
-                    if(strcmp(s.active_box[i], box_name) == 0){
+                    if(strcmp(s.active_box[i], box_name) == 0 && s.active_box[i].pub_activity == 1){
                         fprintf(stderr, "[ERR]: box already active: %s\n", strerror(errno));
                         exit(EXIT_FAILURE);
                     }
@@ -138,11 +112,11 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
+               
                 s.num_active_sessions++;
+                s.active_box[s.num_active_box].name = box_name;
+                s.active_box[s.num_active_box].pub_activity = 1;
                 s.num_active_box++;
-                s.active_sessions[s.num_active_sessions-1].name = client_named_pipe_path;
-                s.active_sessions[s.num_active_sessions-1].type = 1;
-                s.active_box[s.num_active_box-1].name = box_name;
 
 
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
@@ -170,10 +144,8 @@ int main(int argc, char **argv) {
                 close(pipe_pub);
                 s.num_active_sessions--;
                 s.num_active_box--;
-                s.active_sessions[s.num_active_sessions-1].name = "";
-                s.active_sessions[s.num_active_sessions-1].type = 0;
-                s.active_box[s.num_active_box-1] = "";
-
+                s.active_box[s.num_active_box].name = box_name;
+                s.active_box[s.num_active_box].pub_activity = 0;
             }
             /* Criação de processo subscriber */
             case 2:{
@@ -184,9 +156,18 @@ int main(int argc, char **argv) {
                 }
                 
                 s.num_active_sessions++;
-                s.num_active_box++;
-                s.active_box[num_active_box-1].name = box_name;
-                s.active_box[num_active_box-1].num_active_subs++;
+                for(int i = 0; i < s.num_active_box; i++){
+                    if(strcmp(s.active_box[i], box_name) == 0){
+                        s.active_box[i].sub_activity++;
+                        break;
+                    }
+                    else{
+                        s.active_box[s.num_active_box].name = box_name;
+                        s.active_box[s.num_active_box].sub_activity = 1;
+                        s.num_active_box++;
+                        break;
+                    }
+                }
 
 
                 if(tfs_open(box_name, TFS_O_APPEND) < 0){
@@ -210,13 +191,18 @@ int main(int argc, char **argv) {
                     buf = format_msg(buf, msg);
                 }
 
-
-
-                
-
-
-
-
+                tfs_close(box_name);
+                close(pipe_sub);
+                s.num_active_sessions--;
+                for(int i = 0; i < s.num_active_box; i++){
+                    if(strcmp(s.active_box[i], box_name) == 0){
+                        s.active_box[i].sub_activity--;
+                    }
+                    if(s.active_box[i].sub_activity == 0 && s.active_box[i].pub_activity == 0){
+                        s.active_box[i].name = NULL;
+                        s.num_active_box--;
+                    }                    
+                } 
             }
 
 

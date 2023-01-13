@@ -187,11 +187,11 @@ int main(int argc, char **argv) {
                 }
                 char* token = strtok(answer, "|");
                 for (int i = 0; token != NULL; i++) {
-                    if(i == 0) last = atoi(token);
-                    if(i == 1) box_list[j].box_name = token;
-                    if(i == 2) box_list[j].box_size = atoi(token);
-                    if(i == 3) box_list[j].n_publishers = atoi(token);
-                    if(i == 4) box_list[j].n_subscribers = atoi(token);
+                    if(i == 1) last = atoi(token);
+                    if(i == 2) box_list[j].box_name = token;
+                    if(i == 3) box_list[j].box_size = atoi(token);
+                    if(i == 4) box_list[j].n_publishers = atoi(token);
+                    if(i == 5) box_list[j].n_subscribers = atoi(token);
                     token = strtok(NULL, "|");
                 }
                 j++;
