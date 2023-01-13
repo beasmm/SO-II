@@ -1,4 +1,5 @@
 #include "logging.h"
+#include "mbroker.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -12,24 +13,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fs/operations.h>
-
-
-typedef struct Boxes {
-    char* name;
-    int num_active_subs;
-    int pub_activity; 
-} Box;
-
-
-typedef char pipename_t[256];
-
-typedef struct Sessions {
-    int num_active_sessions;
-    pipename_t* active_sessions;
-    char* pipe_name;
-    Box active_box[256];
-    int num_active_box;
-} Session;
 
 
 void format_msg(uint8_t buf[], char msg[]){
@@ -49,7 +32,7 @@ int main(int argc, char **argv) {
     char* client_named_pipe_path;
     char* box_name;
     int max_sessions = atoi(argv[2]);
-    char msg[1024];
+    char msg[MAX_MSG_SIZE];
 
     Session s;
     s.num_active_sessions = 0;
