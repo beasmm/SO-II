@@ -20,8 +20,8 @@ typedef struct Clients{
 typedef struct Sessions {
     int num_active_sessions;
     char* pipe_name;
-    Client active_sessions[];
-    char* active_box[];
+    Client *active_sessions;
+    char *active_box;
     int num_active_box;
 } Session;
 
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
 
     char* buffer;
-    char* op_code_str;
+    char op_code_str[3];
     int op_code;
     char* client_named_pipe_path;
     char* box_name;
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    tfs_init();
+    // tfs_init();
 
 
     while(true){
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
         /* Verificação do op_code */
         for(int i = 0; i < strlen(buffer); i++){
             if(buffer[i] != '|'){
-                op_code_str = buffer[i];
+                op_code_str[i] = buffer[i];
                 break;
             }
         }
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
         }
         
         /* Leitura de client_named_pipe_path */
-        for(int i = uint8_t; i < strlen(buffer); i++){
+        for(int i = sizeof(uint8_t); i < strlen(buffer); i++){
             if(buffer[i] != '|'){
                 client_named_pipe_path += buffer[i];
             }
