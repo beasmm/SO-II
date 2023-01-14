@@ -13,10 +13,10 @@ typedef struct Boxes {
 
 typedef char pipename_t[PIPE_NAME_SIZE];
 
-typedef struct Sessions {
+typedef struct Servers {
     int num_active_sessions;
     pipename_t* active_sessions;
     char* pipe_name;
-    Box active_box[256];
+    Box active_box[PIPE_NAME_SIZE];
     int num_active_box;
-} Session;
+} Server;

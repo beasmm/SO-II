@@ -1,5 +1,6 @@
 #include "logging.h"
 #include "mbroker.h"
+#include "producer-consumer.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -34,12 +35,16 @@ int main(int argc, char **argv) {
     char* box_name = NULL;
     int max_sessions = atoi(argv[2]);
     char msg[1024] = {"\0"};
+    pc_queue_t pcq = (pc_queue_t)malloc(sizeof(pc_queue_t));
 
-    Session s;
+
+    Server s;
     s.num_active_sessions = 0;
     s.num_active_box = 0;
     s.pipe_name = argv[1];
     s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
+
+    pcq_create(&pcq, max_sessions);
 
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
