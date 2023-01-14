@@ -87,8 +87,7 @@ int main(int argc, char **argv) {
         }
 
 
-        switch (op_code){
-            
+        switch (op_code){   
             /* Processo publisher */        
             case 1:{
                 for(int i = 0; i < s.num_active_box; i++){
@@ -302,13 +301,8 @@ int main(int argc, char **argv) {
                         exit(EXIT_FAILURE);
                     }
                 }
-
-
-
-
-            }
-            
-        
+                break;
+            }       
             default:
                 break;
         }
