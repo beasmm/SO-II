@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     char* client_named_pipe_path;
     char* box_name;
     int max_sessions = atoi(argv[2]);
-    char msg[MAX_MSG_SIZE];
+    char msg[1025] = {"\0"};
 
     Session s;
     s.num_active_sessions = 0;
@@ -186,20 +186,90 @@ int main(int argc, char **argv) {
 
                 tfs_close(fhandle);
                 close(pipe_sub);
-                s.num_active_sessions--;
-                for(int i = 0; i < s.num_active_box; i++){
-                    if(strcmp(s.active_box[i].name, box_name) == 0){
-                        s.active_box[i].num_active_subs--;
-                        if(s.active_box[i].num_active_subs == 0 && s.active_box[i].pub_activity == 0){
-                            s.active_box[i].name = NULL;
-                            s.num_active_box--;
-                        }
-                        break;
-                    }
-
-                } 
+                s.num_active_sessions--; 
                 break;
             }
+
+            case 3:{
+                
+                uint32_t return_code;
+                int pipe_man = open(client_named_pipe_path, O_WRONLY);
+                if (pipe_man < 0){
+                    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                s.num_active_sessions++;
+                uint8_t buf[sizeof(uint8_t) + sizeof(uint32_t) + 1027*sizeof(char)] = {0};
+                   
+                int fhandle = tfs_open(box_name, TFS_O_CREAT);
+                if (fhandle < 0) {
+                    return_code = -1;
+                    strcpy(msg, "[ERR]: box creation failed");
+                }else return_code = 0;
+
+                s.created_box[s.num_created_box].name = box_name;
+                s.num_created_box++;
+
+                memcpy(buf, "4", sizeof(uint8_t));
+                memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
+                memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1025*sizeof(char));
+
+                if(write(pipe_man, buf, sizeof(buf)) < 0){
+                    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                tfs_close(fhandle);
+                close(pipe_man);
+                s.num_active_sessions--;
+                break;
+            }
+
+            case 5:{
+                uint32_t return_code;
+                int pipe_man = open(client_named_pipe_path, O_WRONLY);
+                if (pipe_man < 0){
+                    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                s.num_active_sessions++;
+                uint8_t buf[sizeof(uint8_t) + sizeof(uint32_t) + 1027*sizeof(char)] = {0};
+
+                int fhandle = tfs_unlink(box_name);
+                if (fhandle < 0) {
+                    return_code = -1;
+                    strcpy(msg, "[ERR]: box deletion failed");
+                }else return_code = 0;
+
+                memcpy(buf, "6", sizeof(uint8_t));
+                memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
+                memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1025*sizeof(char));
+
+                if(write(pipe_man, buf, sizeof(buf)) < 0){
+                    fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                tfs_close(fhandle);
+                close(pipe_man);
+                s.num_active_sessions--;
+                for(int i = 0; i < s.num_created_box; i++){
+                    if(strcmp(s.created_box[i].name, box_name) == 0){
+                        s.created_box[i].name = s.created_box[s.num_created_box - 1].name;
+                        s.num_created_box--;
+                        break;
+                    }
+                }break;
+                break;
+            }
+
+            /* case 7:{
+                int pipe_man = open(client_named_pipe_path)
+
+            } */
+            
         
             default:
                 break;

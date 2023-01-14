@@ -16,6 +16,8 @@ typedef struct Sessions {
     int num_active_sessions;
     pipename_t* active_sessions;
     char* pipe_name;
-    Box active_box[MAX_BOXES];
+    Box created_box[256];
+    int num_created_box;
+    Box active_box[256];
     int num_active_box;
 } Session;
