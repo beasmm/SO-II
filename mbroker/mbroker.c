@@ -306,26 +306,7 @@ int main(int argc, char **argv) {
             default:
                 break;
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
-
-
-    
-
-
-
-
-    return -1;
+    close(fd);
+    return 0;
 }
