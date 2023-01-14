@@ -32,7 +32,8 @@ int main(int argc, char **argv) {
         strcpy(client_named_pipe_path, argv[2]);
     }
     else{
-        WARN("client_named_pipe_path too long");
+        fprintf(stderr, "[ERR]: client_named_pipe_path too long: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     }
 
@@ -40,7 +41,8 @@ int main(int argc, char **argv) {
         strcpy(box_name, argv[3]);
     }
     else{
-        WARN("box_name too long");
+        fprintf(stderr, "[ERR]: box_name too long: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     }
 
@@ -54,24 +56,28 @@ int main(int argc, char **argv) {
 
     int tx = open(argv[1], O_WRONLY);
     if (tx < 0) {
-        WARN("open failed");
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     }
     
     if(mkfifo(argv[2], 0666) < 0) {
-        WARN("mkfifo failed");
+        fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     }
 
     if (write(tx, buf, sizeof(buf)) < 0) {
-        WARN("write failed");
+        fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     }
     
     close(tx);
     int rx = open(argv[2], O_WRONLY);
     if (rx < 0) {
-        WARN("open failed");
+        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
         return -1;
     } 
     
@@ -85,7 +91,8 @@ int main(int argc, char **argv) {
         memcpy(mesg + sizeof(uint8_t) + sizeof(char), inp, strlen(inp));
 
         if (write(rx, mesg, sizeof(mesg)) < 0) {
-            WARN("write failed");
+            fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
             return -1;
         }
         
