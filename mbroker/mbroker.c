@@ -28,10 +28,10 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    char* buffer;
+    char* buffer = NULL;
     int op_code = 0;
     char* client_named_pipe_path;
-    char* box_name;
+    char* box_name = NULL;
     int max_sessions = atoi(argv[2]);
     char msg[1024] = {"\0"};
 
