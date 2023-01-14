@@ -8,6 +8,7 @@ typedef struct Boxes {
     char* name;
     int num_active_subs;
     int pub_activity; 
+    int size;
 } Box;
 
 typedef char pipename_t[PIPE_NAME_SIZE];
@@ -16,8 +17,6 @@ typedef struct Sessions {
     int num_active_sessions;
     pipename_t* active_sessions;
     char* pipe_name;
-    Box created_box[256];
-    int num_created_box;
     Box active_box[256];
     int num_active_box;
 } Session;

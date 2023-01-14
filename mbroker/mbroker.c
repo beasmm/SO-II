@@ -15,6 +15,7 @@
 #include <fs/operations.h>
 
 
+
 void format_msg(uint8_t buf[], char msg[]){
     memcpy(buf, "10", sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
@@ -32,7 +33,7 @@ int main(int argc, char **argv) {
     char* client_named_pipe_path;
     char* box_name;
     int max_sessions = atoi(argv[2]);
-    char msg[1025] = {"\0"};
+    char msg[1024] = {"\0"};
 
     Session s;
     s.num_active_sessions = 0;
@@ -126,6 +127,7 @@ int main(int argc, char **argv) {
                             fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                             exit(EXIT_FAILURE);
                         }
+                        s.active_box[s.num_active_box-1].size += sizeof(buffer);
                     }
                     if(ret == 0){
                         return 0;
@@ -207,14 +209,14 @@ int main(int argc, char **argv) {
                     strcpy(msg, "[ERR]: box creation failed");
                 }else return_code = 0;
 
-                s.created_box[s.num_created_box].name = box_name;
-                s.num_created_box++;
+                s.active_box[s.num_active_box].name = box_name;
+                s.num_active_box++;
 
                 memcpy(buf, "4", sizeof(uint8_t));
                 memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
                 memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
                 memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1025*sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1024*sizeof(char));
 
                 if(write(pipe_man, buf, sizeof(buf)) < 0){
                     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -246,7 +248,7 @@ int main(int argc, char **argv) {
                 memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
                 memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
                 memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1025*sizeof(char));
+                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1024*sizeof(char));
 
                 if(write(pipe_man, buf, sizeof(buf)) < 0){
                     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -265,10 +267,46 @@ int main(int argc, char **argv) {
                 break;
             }
 
-            /* case 7:{
-                int pipe_man = open(client_named_pipe_path)
+            case 7:{
+                int pipe_man = open(client_named_pipe_path, O_WRONLY);
+                if(pipe_man < 0){
+                    fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+                s.num_active_sessions++;
+                uint8_t buf[2*sizeof(uint8_t) + 3*sizeof(uint64_t) + 37*sizeof(char)] = {0};
 
-            } */
+                for(int i= 0; i < s.num_active_box; i++){
+                    memcpy(buf, "8", sizeof(uint8_t));
+                    memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+                    /* last */
+                    if(i == s.num_active_box - 1){
+                        memcpy(buf + sizeof(uint8_t) + sizeof(char), "1", sizeof(uint8_t));
+                    }else{
+                        memcpy(buf + sizeof(uint8_t) + sizeof(char), "0", sizeof(uint8_t));}
+                    memcpy(buf + 2*sizeof(uint8_t) + sizeof(char), "|", sizeof(char));
+                    /* box_name */
+                    memcpy(buf + 2*sizeof(uint8_t) + 2*sizeof(char), &s.active_box[i].name, sizeof(char)*32);
+                    memcpy(buf + 2*sizeof(uint8_t) + 34*sizeof(char), "|", sizeof(char));
+                    /* box_size */
+                    memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char), &s.active_box[i].size, sizeof(uint64_t));
+                    memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char) + sizeof(uint64_t), "|", sizeof(char));
+                    /* n_publishers */
+                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + sizeof(uint64_t), s.active_box[i].pub_activity, sizeof(uint64_t));
+                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + 2*sizeof(uint64_t), "|", sizeof(char));
+                    /* n_subscribers */
+                    memcpy(buf + 2*sizeof(uint8_t) + 37*sizeof(char) + 2*sizeof(uint64_t), s.active_box[i].num_active_subs, sizeof(uint64_t));               
+
+                    if(write(pipe_man, buf, sizeof(buf)) < 0){
+                        fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
+                }
+
+
+
+
+            }
             
         
             default:
