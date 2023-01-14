@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     }
 
     char* buffer;
-    int op_code;
+    int op_code = 0;
     char* client_named_pipe_path;
     char* box_name;
     int max_sessions = atoi(argv[2]);
@@ -61,15 +61,16 @@ int main(int argc, char **argv) {
         if(read(fd, buffer, sizeof(buffer)) < 0) {
             fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
+        }else{
+            char* token = strtok(buffer, "|");
+            for (int i = 0; token != NULL; i++) {
+                if(i == 0) op_code = atoi(token);
+                if(i == 2) client_named_pipe_path = token;
+                if(i == 3) box_name = token;
+                token = strtok(NULL, "|");
+            }
         }
 
-        char* token = strtok(buffer, "|");
-        for (int i = 0; token != NULL; i++) {
-            if(i == 0) op_code = atoi(token);
-            if(i == 2) client_named_pipe_path = token;
-            if(i == 3) box_name = token;
-            token = strtok(NULL, "|");
-        }       
         
 
         /* Verificação pipes ativos com o mesmo nome */
@@ -126,7 +127,7 @@ int main(int argc, char **argv) {
                             fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                             exit(EXIT_FAILURE);
                         }
-                        s.active_box[s.num_active_box-1].size += sizeof(buffer);
+                        s.active_box[s.num_active_box-1].size += (int)sizeof(buffer);
                     }
                     if(ret == 0){
                         return 0;
@@ -204,7 +205,7 @@ int main(int argc, char **argv) {
                    
                 int fhandle = tfs_open(box_name, TFS_O_CREAT);
                 if (fhandle < 0) {
-                    return_code = -1;
+                    return_code = (uint32_t)-1;
                     strcpy(msg, "[ERR]: box creation failed");
                 }else return_code = 0;
 
@@ -239,7 +240,7 @@ int main(int argc, char **argv) {
 
                 int fhandle = tfs_unlink(box_name);
                 if (fhandle < 0) {
-                    return_code = -1;
+                    return_code = (uint32_t)-1;
                     strcpy(msg, "[ERR]: box deletion failed");
                 }else return_code = 0;
 
@@ -256,10 +257,12 @@ int main(int argc, char **argv) {
                 tfs_close(fhandle);
                 close(pipe_man);
                 s.num_active_sessions--;
-                for(int i = 0; i < s.num_created_box; i++){
-                    if(strcmp(s.created_box[i].name, box_name) == 0){
-                        s.created_box[i].name = s.created_box[s.num_created_box - 1].name;
-                        s.num_created_box--;
+                for(int i = 0; i < s.num_active_box; i++){
+                    if(strcmp(s.active_box[i].name, box_name) == 0){
+                        s.active_box[i].name = NULL;
+                        s.active_box[i].num_active_subs = 0;
+                        s.active_box[i].pub_activity = 0;
+                        s.num_active_box--;
                         break;
                     }
                 }break;
@@ -291,10 +294,10 @@ int main(int argc, char **argv) {
                     memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char), &s.active_box[i].size, sizeof(uint64_t));
                     memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char) + sizeof(uint64_t), "|", sizeof(char));
                     /* n_publishers */
-                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + sizeof(uint64_t), s.active_box[i].pub_activity, sizeof(uint64_t));
+                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + sizeof(uint64_t), &s.active_box[i].pub_activity, sizeof(uint64_t));
                     memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + 2*sizeof(uint64_t), "|", sizeof(char));
                     /* n_subscribers */
-                    memcpy(buf + 2*sizeof(uint8_t) + 37*sizeof(char) + 2*sizeof(uint64_t), s.active_box[i].num_active_subs, sizeof(uint64_t));               
+                    memcpy(buf + 2*sizeof(uint8_t) + 37*sizeof(char) + 2*sizeof(uint64_t), &s.active_box[i].num_active_subs, sizeof(uint64_t));               
 
                     if(write(pipe_man, buf, sizeof(buf)) < 0){
                         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
