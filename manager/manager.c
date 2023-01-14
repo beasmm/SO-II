@@ -10,24 +10,25 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdint.h>
 
-typedef struct box{
-    char box_name[32] = "";
-    uint64_t box_size;
-    uint64_t n_publishers;
-    uint64_t n_subscribers;
+typedef struct boxes{
+    char box_name[32];
+    size_t box_size;
+    size_t n_publishers;
+    size_t n_subscribers;
 } box;
 
-int compare(const void* a, const void* b) {
-    struct box* entry1 = (struct box*) a;
-    struct box* entry2 = (struct box*) b;
-    return strcmp(entry1->box_name, entry2->box_name);
+
+int compare_box_names(const void *a, const void *b) {
+    box *box1 = (box *)a;
+    box *box2 = (box *)b;
+    return strcmp(box1->box_name, box2->box_name);
 }
 
-void sort_boxes(struct box* list, int size) {
-    qsort(list, size, sizeof(struct box), compare);
+void sort_boxes(box list[], size_t n) {
+    qsort(list, n, sizeof(box), compare_box_names);
 }
-
 
 
 static void print_usage() {
@@ -39,10 +40,10 @@ static void print_usage() {
 
 
 int main(int argc, char **argv) {
-    char error_message[1025];
-    char answer[1025];
     char client_named_pipe_path[257] = {"\0"};
     char box_name[33] = {"\0"};
+    char answer[1027+sizeof(uint32_t)+sizeof(uint8_t)] = {"\0"};
+    int operation=0;
 
     if(argc < 4) {
         print_usage();
@@ -50,7 +51,7 @@ int main(int argc, char **argv) {
     }
 
     if(strlen(argv[2]) <= 256) {
-        strcpy(client_named_pipe_path, argv[2]); 
+        strcpy(client_named_pipe_path, argv[2]);
     } else {
         WARN("client_named_pipe_path too long");
         return -1;
@@ -63,6 +64,13 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    if(strcmp(argv[3], "create")== 0){
+        operation = 3;
+    }else if(strcmp(argv[3], "remove")== 0){
+        operation = 5;
+    }else if(strcmp(argv[3], "list")== 0){
+        operation = 7;
+    }
 
     int tx = open(argv[1], O_WRONLY);
     if (tx == -1) {
@@ -75,15 +83,16 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    switch(argv[3]) {
-        case "create":{
+    switch(operation) {
+        case 3:{
 
             uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, 3, sizeof(uint8_t));
+            memcpy(buf, "3", sizeof(uint8_t));
             memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char) client_named_pipe_path, 257*sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 259*sizeof(char), box_name, 33*sizeof(char));
+            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 256*sizeof(char));
+            memcpy(buf + sizeof(uint8_t) + 257*sizeof(char), "|", sizeof(char));
+            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), box_name, 32*sizeof(char));
+
 
             if(write(tx, buf, sizeof(buf)) < 0) {
                 fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -106,22 +115,21 @@ int main(int argc, char **argv) {
                 fprintf(stdout, "OK\n");
             }
             else{
-                for(int i = 8; i < 1024; i++){
-                    error_message += answer[i];
-                    if(answer[i] == "\0") break;
-                }
+                char error_message[1024] = {"\0"};
+                memcpy(error_message, answer + 5, 1024);
                 fprintf(stdout, "ERROR %s\n", error_message);
             }
+            close(rx);
             break;
         }
-        case "remove":{
-            
+        case 5:{
+
             uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, 5, sizeof(uint8_t));
+            memcpy(buf, "5", sizeof(uint8_t));
             memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char) client_named_pipe_path, 257*sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 259*sizeof(char), box_name, 33*sizeof(char));
+            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 256*sizeof(char));
+            memcpy(buf + sizeof(uint8_t) + 257*sizeof(char), "|", sizeof(char));
+            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), box_name, 32*sizeof(char));
 
             
             if(write(tx, buf, sizeof(buf)) < 0) {
@@ -145,25 +153,21 @@ int main(int argc, char **argv) {
                 fprintf(stdout, "OK\n");
             }
             else{
-                int j = 0
-                for(int i = 8 ; i < 1024; i++){
-                    if(answer[i] == "\0") break;
-                    error_message[j] = answer[i];
-                    j++;
-                }
+                char error_message[1024] = {"\0"};
+                memcpy(error_message, answer + 5, 1024);
                 fprintf(stdout, "ERROR %s\n", error_message);
             }
+            close(rx);
             break;
         }
-        case "list":{
-            
+        case 7:{
             uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, 7, sizeof(uint8_t));
+            memcpy(buf, "7", sizeof(uint8_t));
             memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char) client_named_pipe_path, 257*sizeof(char));
+            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 257*sizeof(char));
 
-            int j = 0;
-            uint8_t last = 1;
+            int num_boxes = 0;
+            int last = 1;
             box box_list[1024];
 
 
@@ -188,14 +192,14 @@ int main(int argc, char **argv) {
                 }
                 char* token = strtok(answer, "|");
                 for (int i = 0; token != NULL; i++) {
-                    if(i == 1) last = atoi(token);
-                    if(i == 2) box_list[j].box_name = token;
-                    if(i == 3) box_list[j].box_size = atoi(token);
-                    if(i == 4) box_list[j].n_publishers = atoi(token);
-                    if(i == 5) box_list[j].n_subscribers = atoi(token);
+                    if(i == 1) last = (size_t) atoi(token);
+                    if(i == 2) strcpy(box_list[num_boxes].box_name, token);
+                    if(i == 3) box_list[num_boxes].box_size =(size_t) atoi(token);
+                    if(i == 4) box_list[num_boxes].n_publishers =(size_t) atoi(token);
+                    if(i == 5) box_list[num_boxes].n_subscribers =(size_t) atoi(token);
                     token = strtok(NULL, "|");
                 }
-                j++;
+                num_boxes++;
             }
 
 
@@ -204,18 +208,18 @@ int main(int argc, char **argv) {
                 break;
             }
             else{
-                sort_boxes(box_list, j);
-                for(int i = 0; i < j; i++){
-                    fprintf(stdout, "%s %zu %zu %zu\n", box_list[i].box_name, box_list[i].box_name,
+                sort_boxes(box_list, (size_t) num_boxes);
+                for(int i = 0; i < num_boxes; i++){
+                    fprintf(stdout, "%s %zu %zu %zu\n", box_list[i].box_name, box_list[i].box_size,
                         box_list[i].n_publishers, box_list[i].n_subscribers);
                 }
             }
+            close(rx);
             break;
         }
         default:
             print_usage();
             break;
     }
-    close(rx);
     return 0;
 }
