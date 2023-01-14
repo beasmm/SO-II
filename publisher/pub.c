@@ -5,33 +5,39 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define MAX_MESSAGE_SIZE 1024
+#define MAX_BOX_NAME_SIZE 32
+#define MAX_CLIENT_NAMED_PIPE_PATH_SIZE 256
+
+
 int main(int argc, char **argv) {
 
-    char inp[1024];
-
+    char inp[MAX_MESSAGE_SIZE + 1] = {"\0"};
+    char client_named_pipe_path[MAX_CLIENT_NAMED_PIPE_PATH_SIZE + 1] = {"\0"};
+    char box_name[MAX_BOX_NAME_SIZE + 1] = {"\0"};
 
     if(argc != 4) {
         fprintf(stderr, "usage: pub <register_pipe_name> <box_name>\n");
         return -1;
     }
 
-    uint8_t code = 1;
-    if (strlen(argv[2]) <= 256){
-        char const client_named_pipe_path = argv[2]; 
+    if (strlen(argv[2]) <= MAX_CLIENT_NAMED_PIPE_PATH_SIZE){
+        strcpy(client_named_pipe_path, argv[2]);
     }
     else{
         WARN("client_named_pipe_path too long");
         return -1;
     }
 
-    if (strlen(argv[3]) <= 32){
-        char const box_name = argv[3];
+    if (strlen(argv[3]) <= MAX_BOX_NAME_SIZE){
+        strcpy(box_name, argv[3]);
     }
     else{
         WARN("box_name too long");
@@ -39,9 +45,9 @@ int main(int argc, char **argv) {
     }
 
     uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-    memcpy(buf, code, sizeof(uint8_t));
+    memcpy(buf, "1", sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-    memcpy(buf + sizeof(uint8_t)+sizeof(char), client_named_pipe_path, strlen(client_named_pipe_path));
+    memcpy(buf + sizeof(uint8_t) + sizeof(char), client_named_pipe_path, strlen(client_named_pipe_path));
     memcpy(buf + sizeof(uint8_t) + 257*sizeof(char), "|", sizeof(char));
     memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), argv[3], strlen(argv[3]));
 
@@ -70,19 +76,19 @@ int main(int argc, char **argv) {
     } 
     
     while(true) {
-        scanf("%s", inp);
+        if(scanf("%s", inp) == EOF) {
+            break;
+        };
         uint8_t mesg[sizeof(uint8_t) + 1025*sizeof(char)] = {0};
-        memcpy(mesg, 9, sizeof(uint8_t));
+        memcpy(mesg, "9", sizeof(uint8_t));
         memcpy(mesg + sizeof(uint8_t), "|", sizeof(char));
-        memcpy(mesg + sizeof(uint8_t)+sizeof(char), inp, strlen(inp));
+        memcpy(mesg + sizeof(uint8_t) + sizeof(char), inp, strlen(inp));
 
         if (write(rx, mesg, sizeof(mesg)) < 0) {
             WARN("write failed");
             return -1;
         }
-        if (inp == EOF){
-            break;
-        }
+        
     }
     close(rx);
     return 0;
