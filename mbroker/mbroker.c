@@ -29,13 +29,13 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    char* buffer = NULL;
+    char buffer[1024] = {"\0"} ;
+    char str_op_code[1];
     int op_code = 0;
-    char* client_named_pipe_path;
-    char* box_name = NULL;
+    char client_named_pipe_path[256] = {"\0"};
+    char box_name[32] = {"\0"};
     int max_sessions = atoi(argv[2]);
     char msg[1024] = {"\0"};
-    pc_queue_t pcq = (pc_queue_t)malloc(sizeof(pc_queue_t));
 
 
     Server s;
@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
     s.pipe_name = argv[1];
     s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
 
-    pcq_create(&pcq, max_sessions);
 
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
@@ -56,24 +55,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    tfs_init(NULL);
+    //tfs_init(NULL);
 
 
     while(true){
         int tester = 0;
         
         /* Leitura de pedidos de registo */
-        if(read(fd, buffer, sizeof(buffer)) < 0) {
+        if(read(fd, &buffer, sizeof(buffer)) < 0) {
             fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
         }else{
-            char* token = strtok(buffer, "|");
-            for (int i = 0; token != NULL; i++) {
-                if(i == 0) op_code = atoi(token);
-                if(i == 2) client_named_pipe_path = token;
-                if(i == 3) box_name = token;
-                token = strtok(NULL, "|");
-            }
+            memcpy(str_op_code, buffer, 1);
+            op_code = atoi(str_op_code);
+            memcpy(client_named_pipe_path, buffer+1, 256);
+            if(op_code != 7) memcpy(box_name, buffer+257, 32);
         }
 
         
@@ -96,6 +92,7 @@ int main(int argc, char **argv) {
         switch (op_code){   
             /* Processo publisher */        
             case 1:{
+
                 for(int i = 0; i < s.num_active_box; i++){
                     if(strcmp(s.active_box[i].name, box_name) == 0 && s.active_box[i].pub_activity == 1){
                         fprintf(stderr, "[ERR]: box already active: %s\n", strerror(errno));

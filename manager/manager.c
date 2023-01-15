@@ -44,23 +44,28 @@ int main(int argc, char **argv) {
     char box_name[33] = {"\0"};
     char answer[1027+sizeof(uint32_t)+sizeof(uint8_t)] = {"\0"};
     int operation=0;
+    char buf[290] = {"\0"};
 
     if(argc < 4) {
         print_usage();
         return -1;
     }
 
+
+
     if(strlen(argv[2]) <= 256) {
         strcpy(client_named_pipe_path, argv[2]);
+        fprintf(stderr,"%s\n", client_named_pipe_path);
     } else {
-        WARN("client_named_pipe_path too long");
+        fprintf(stderr, "[ERR]: client_named_pipe_path too long: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);        
         return -1;
     }
-
     if(strlen(argv[4]) <= 32) {
         strcpy(box_name, argv[4]);
     } else {
-        WARN("box_name too long");
+        fprintf(stderr, "[ERR]: client_named_pipe_path too long: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);        
         return -1;
     }
 
@@ -74,7 +79,7 @@ int main(int argc, char **argv) {
 
     int tx = open(argv[1], O_WRONLY);
     if (tx == -1) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+        fprintf(stderr, "[ERR]: server open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
     
@@ -86,19 +91,15 @@ int main(int argc, char **argv) {
     switch(operation) {
         case 3:{
 
-            uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, "3", sizeof(uint8_t));
-            memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 256*sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 257*sizeof(char), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), box_name, 32*sizeof(char));
+            buf[0] = '3';
+            memcpy(buf + 1, client_named_pipe_path, 256);
+            memcpy(buf + 257, box_name, 32);
 
 
             if(write(tx, buf, sizeof(buf)) < 0) {
                 fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
-            close(tx);
             
             int rx = open(argv[2], O_RDONLY);
             if (rx == -1) {
@@ -124,12 +125,9 @@ int main(int argc, char **argv) {
         }
         case 5:{
 
-            uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, "5", sizeof(uint8_t));
-            memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 256*sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 257*sizeof(char), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t) + 258*sizeof(char), box_name, 32*sizeof(char));
+            buf[0] = '5';
+            memcpy(buf + 1, client_named_pipe_path, 256);
+            memcpy(buf + 257, box_name, 32);
 
             
             if(write(tx, buf, sizeof(buf)) < 0) {
@@ -161,10 +159,9 @@ int main(int argc, char **argv) {
             break;
         }
         case 7:{
-            uint8_t buf[sizeof(uint8_t) + 257*sizeof(char)+ 33*sizeof(char)] = {0};
-            memcpy(buf, "7", sizeof(uint8_t));
-            memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-            memcpy(buf + sizeof(uint8_t)+ sizeof(char), client_named_pipe_path, 257*sizeof(char));
+            buf[0] = '7';
+            memcpy(buf + 1, client_named_pipe_path, 256);
+            memcpy(buf + 257, box_name, 32);
 
             int num_boxes = 0;
             int last = 1;
