@@ -21,5 +21,5 @@ typedef struct Servers {
     char* pipe_name;
     Box active_box[PIPE_NAME_SIZE];
     int num_active_box;
-    pthread_t tid;
+    pthread_t *tid;
 } Server;
