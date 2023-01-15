@@ -16,42 +16,25 @@
 #include <fs/operations.h>
 
 Server s;
+char buffer[MAX_MSG_SIZE] = {"\0"} ;
+char str_op_code[1];
+int op_code = 0;
+char client_named_pipe_path[PIPE_NAME_SIZE] = {"\0"};
+char box_name[BOX_NAME_SIZE] = {"\0"};
+char msg[MAX_MSG_SIZE] = {"\0"};
+int tester = 0;
 
-void format_msg(uint8_t buf[], char msg[]){
+
+
+void format_msg(uint8_t buf[], char msge[]){
     memcpy(buf, "10", sizeof(uint8_t));
     memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-    memcpy(buf + sizeof(uint8_t)+sizeof(char), msg, strlen(msg));
+    memcpy(buf + sizeof(uint8_t)+sizeof(char), msge, strlen(msg));
 } 
 
 static void* threadFun(void *arg){
     pc_queue_t* message = (pc_queue_t*)arg;
     pcq_dequeue(message);
-
-    char buffer[MAX_MSG_SIZE] = {"\0"} ;
-    char str_op_code[1];
-    int op_code = 0;
-    char client_named_pipe_path[PIPE_NAME_SIZE] = {"\0"};
-    char box_name[BOX_NAME_SIZE] = {"\0"};
-    char msg[MAX_MSG_SIZE] = {"\0"};
-
-    int fd = open(s.pipe_name, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    int tester = 0;
-    /* Leitura de pedidos de registo */
-
-    if(read(fd, &buffer, sizeof(buffer)) < 0) {
-        fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }else{
-        memcpy(str_op_code, buffer, 1);
-        op_code = atoi(str_op_code);
-        memcpy(client_named_pipe_path, buffer+1, 256);
-        if(op_code != 7) memcpy(box_name, buffer+257, 32);
-    }
-
 
     /* Verificação pipes ativos com o mesmo nome */
     for(int i = 0; i < s.num_active_sessions; i++){
@@ -280,8 +263,6 @@ static void* threadFun(void *arg){
             break;
         }
     }
-    close(fd);        
-
     return NULL;
 }
 
@@ -311,7 +292,26 @@ int main(int argc, char **argv) {
 
     while(true){
         for (pthread_create(&s.tid, NULL, threadFun, (void*)pcq); pthread_join(s.tid, NULL) != 0;){
-            pcq_enqueue(pcq, argv);
+            int fd = open(s.pipe_name, O_RDONLY);
+            
+            if (fd < 0) {
+                fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            /* Leitura de pedidos de registo */
+
+            if(read(fd, &buffer, sizeof(buffer)) < 0) {
+                fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }else{
+                memcpy(str_op_code, buffer, 1);
+                op_code = atoi(str_op_code);
+                memcpy(client_named_pipe_path, buffer+1, 256);
+                if(op_code != 7) memcpy(box_name, buffer+257, 32);
+            }
+            close(fd);        
+            
+            pcq_enqueue(pcq, buffer);
         }    
     }
     return 0;
