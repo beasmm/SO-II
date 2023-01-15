@@ -279,6 +279,7 @@ int main(int argc, char **argv) {
     s.pipe_name = argv[1];
     s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
 
+
     unlink(s.pipe_name);
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
