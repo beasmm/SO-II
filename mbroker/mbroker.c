@@ -34,6 +34,7 @@ static void* threadFun(void *arg){
     char box_name[BOX_NAME_SIZE] = {"\0"};
     char msg[MAX_MSG_SIZE] = {"\0"};
 
+
     int fd = open(s.pipe_name, O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
@@ -298,6 +299,7 @@ int main(int argc, char **argv) {
     s.pipe_name = argv[1];
     s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
 
+
     unlink(s.pipe_name);
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
@@ -311,6 +313,7 @@ int main(int argc, char **argv) {
 
     while(true){
         for (pthread_create(&s.tid, NULL, threadFun, (void*)pcq); pthread_join(s.tid, NULL) != 0;){
+            fprintf(stderr, "[INFO]pipe_name: %s\n", s.pipe_name);
             pcq_enqueue(pcq, argv);
         }    
     }
