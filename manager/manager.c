@@ -90,7 +90,6 @@ int main(int argc, char **argv) {
 
     switch(operation) {
         case 3:{
-
             buf[0] = '3';
             memcpy(buf + 1, client_named_pipe_path, 256);
             memcpy(buf + 257, box_name, 32);
@@ -111,13 +110,12 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
-
-            if(answer[4] == 0){
+            if(answer[1] == 0){
                 fprintf(stdout, "OK\n");
             }
             else{
                 char error_message[1024] = {"\0"};
-                memcpy(error_message, answer + 5, 1024);
+                memcpy(error_message, answer + 2, 1024);
                 fprintf(stdout, "ERROR %s\n", error_message);
             }
             close(rx);

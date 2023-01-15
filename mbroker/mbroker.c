@@ -44,23 +44,22 @@ int main(int argc, char **argv) {
     s.pipe_name = argv[1];
     s.active_sessions = (pipename_t*)malloc((unsigned int)max_sessions * (sizeof(pipename_t))); 
 
-
+    unlink(s.pipe_name);
     if (mkfifo(s.pipe_name, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
 
-    int fd = open(s.pipe_name, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
     tfs_init(NULL);
 
 
     while(true){
+        int fd = open(s.pipe_name, O_RDONLY);
+        if (fd < 0) {
+            fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
         int tester = 0;
-        
         /* Leitura de pedidos de registo */
         if(read(fd, &buffer, sizeof(buffer)) < 0) {
             fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
@@ -203,23 +202,21 @@ int main(int argc, char **argv) {
                     exit(EXIT_FAILURE);
                 }
                 s.num_active_sessions++;
-                uint8_t buf[sizeof(uint8_t) + sizeof(uint32_t) + 1027*sizeof(char)] = {0};
-                   
+                char buf[1026+ sizeof(uint32_t)];
+
                 int fhandle = tfs_open(box_name, TFS_O_CREAT);
                 if (fhandle < 0) {
                     return_code = (uint32_t)-1;
                     strcpy(msg, "[ERR]: box creation failed");
                 }else return_code = 0;
 
-                s.active_box[s.num_active_box].name = box_name;
+                strcpy(s.active_box[s.num_active_box].name, box_name); 
                 s.num_active_box++;
 
-                memcpy(buf, "4", sizeof(uint8_t));
-                memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
-                memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1024*sizeof(char));
-
+                buf[0] = '4';
+                memcpy(buf + 1, &return_code, sizeof(uint32_t));
+                memcpy(buf + sizeof(uint32_t), msg, 1024);
+                
                 if(write(pipe_man, buf, sizeof(buf)) < 0){
                     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
@@ -238,7 +235,7 @@ int main(int argc, char **argv) {
                     exit(EXIT_FAILURE);
                 }
                 s.num_active_sessions++;
-                uint8_t buf[sizeof(uint8_t) + sizeof(uint32_t) + 1027*sizeof(char)] = {0};
+                char buf[1025+ sizeof(uint32_t)];
 
                 int fhandle = tfs_unlink(box_name);
                 if (fhandle < 0) {
@@ -246,11 +243,9 @@ int main(int argc, char **argv) {
                     strcpy(msg, "[ERR]: box deletion failed");
                 }else return_code = 0;
 
-                memcpy(buf, "6", sizeof(uint8_t));
-                memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + sizeof(char), &return_code, sizeof(uint32_t));
-                memcpy(buf + sizeof(uint8_t) + sizeof(char) + sizeof(uint32_t), "|", sizeof(char));
-                memcpy(buf + sizeof(uint8_t) + 2*sizeof(char) + sizeof(uint32_t),msg, 1024*sizeof(char));
+                buf[0] = '6';
+                memcpy(buf + 1, &return_code, sizeof(uint32_t));
+                memcpy(buf + sizeof(uint32_t), msg, 1024);
 
                 if(write(pipe_man, buf, sizeof(buf)) < 0){
                     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -278,28 +273,23 @@ int main(int argc, char **argv) {
                     exit(EXIT_FAILURE);
                 }
                 s.num_active_sessions++;
-                uint8_t buf[2*sizeof(uint8_t) + 3*sizeof(uint64_t) + 37*sizeof(char)] = {0};
+                char buf[1030];
 
                 for(int i= 0; i < s.num_active_box; i++){
-                    memcpy(buf, "8", sizeof(uint8_t));
-                    memcpy(buf + sizeof(uint8_t), "|", sizeof(char));
+                    buf[0] = '8';
                     /* last */
                     if(i == s.num_active_box - 1){
-                        memcpy(buf + sizeof(uint8_t) + sizeof(char), "1", sizeof(uint8_t));
+                        buf[1] = '1';
                     }else{
-                        memcpy(buf + sizeof(uint8_t) + sizeof(char), "0", sizeof(uint8_t));}
-                    memcpy(buf + 2*sizeof(uint8_t) + sizeof(char), "|", sizeof(char));
+                        buf[1] = '0';
                     /* box_name */
-                    memcpy(buf + 2*sizeof(uint8_t) + 2*sizeof(char), &s.active_box[i].name, sizeof(char)*32);
-                    memcpy(buf + 2*sizeof(uint8_t) + 34*sizeof(char), "|", sizeof(char));
+                    memcpy(buf + 2, &s.active_box[i].name, 32);
                     /* box_size */
-                    memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char), &s.active_box[i].size, sizeof(uint64_t));
-                    memcpy(buf + 2*sizeof(uint8_t) + 35*sizeof(char) + sizeof(uint64_t), "|", sizeof(char));
+                    memcpy(buf + 34, &s.active_box[i].size, sizeof(uint64_t));
                     /* n_publishers */
-                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + sizeof(uint64_t), &s.active_box[i].pub_activity, sizeof(uint64_t));
-                    memcpy(buf + 2*sizeof(uint8_t) + 36*sizeof(char) + 2*sizeof(uint64_t), "|", sizeof(char));
+                    memcpy(buf + sizeof(uint64_t) + 36, &s.active_box[i].pub_activity, sizeof(uint64_t));
                     /* n_subscribers */
-                    memcpy(buf + 2*sizeof(uint8_t) + 37*sizeof(char) + 2*sizeof(uint64_t), &s.active_box[i].num_active_subs, sizeof(uint64_t));               
+                    memcpy(buf + 36*sizeof(char) + 2*sizeof(uint64_t), &s.active_box[i].num_active_subs, sizeof(uint64_t));               
 
                     if(write(pipe_man, buf, sizeof(buf)) < 0){
                         fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
@@ -307,11 +297,13 @@ int main(int argc, char **argv) {
                     }
                 }
                 break;
+                }
             }       
-            default:
+            default:{
                 break;
+            }
+            close(fd);            
         }
     }
-    close(fd);
     return 0;
 }
