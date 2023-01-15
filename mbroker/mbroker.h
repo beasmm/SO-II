@@ -1,3 +1,5 @@
+#include <pthread.h>
+
 #define BOX_NAME_SIZE 32
 #define MAX_BOXES 256
 #define PIPE_NAME_SIZE 256
@@ -19,4 +21,5 @@ typedef struct Servers {
     char* pipe_name;
     Box active_box[PIPE_NAME_SIZE];
     int num_active_box;
+    pthread_t tid;
 } Server;
