@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    //tfs_init(NULL);
+    tfs_init(NULL);
 
 
     while(true){
