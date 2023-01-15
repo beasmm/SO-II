@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
         }
         int tester = 0;
         /* Leitura de pedidos de registo */
+
         if(read(fd, &buffer, sizeof(buffer)) < 0) {
             fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
             exit(EXIT_FAILURE);
@@ -71,7 +72,6 @@ int main(int argc, char **argv) {
             if(op_code != 7) memcpy(box_name, buffer+257, 32);
         }
 
-        
 
         /* Verificação pipes ativos com o mesmo nome */
         for(int i = 0; i < s.num_active_sessions; i++){
@@ -195,28 +195,31 @@ int main(int argc, char **argv) {
 
             case 3:{
                 
-                uint32_t return_code;
                 int pipe_man = open(client_named_pipe_path, O_WRONLY);
                 if (pipe_man < 0){
                     fprintf(stderr, "[ERR]: open failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
                 }
                 s.num_active_sessions++;
-                char buf[1026+ sizeof(uint32_t)];
+                char buf[1030] = {"\0"};    
+                char real_box[33+1];
+                sprintf(real_box, "/%s", box_name);
 
                 int fhandle = tfs_open(box_name, TFS_O_CREAT);
                 if (fhandle < 0) {
-                    return_code = (uint32_t)-1;
                     strcpy(msg, "[ERR]: box creation failed");
-                }else return_code = 0;
+                    buf[0] = '4';
+                    memcpy(buf + 1, "-1", 2);
+                    memcpy(buf + 3, msg, 1024);
+                }else{
+                    buf[0] = '4';
+                    memcpy(buf + 1, "0", 1);
+                    memcpy(buf + 2, msg, 1024);
+                    strcpy(s.active_box[s.num_active_box].name, box_name); 
+                    s.num_active_box++;
+                }
 
-                strcpy(s.active_box[s.num_active_box].name, box_name); 
-                s.num_active_box++;
-
-                buf[0] = '4';
-                memcpy(buf + 1, &return_code, sizeof(uint32_t));
-                memcpy(buf + sizeof(uint32_t), msg, 1024);
-                
+                fprintf(stdout, "buf %s\n", buf);
                 if(write(pipe_man, buf, sizeof(buf)) < 0){
                     fprintf(stderr, "[ERR]: write failed: %s\n", strerror(errno));
                     exit(EXIT_FAILURE);
@@ -302,8 +305,8 @@ int main(int argc, char **argv) {
             default:{
                 break;
             }
-            close(fd);            
         }
+        close(fd);            
     }
     return 0;
 }

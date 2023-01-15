@@ -83,7 +83,8 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
     
-    if(mkfifo(argv[2], 0666) != 0) {
+    unlink(client_named_pipe_path);
+    if(mkfifo(client_named_pipe_path, 0666) != 0) {
         fprintf(stderr, "[ERR]: mkfifo failed: %s\n", strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -106,16 +107,17 @@ int main(int argc, char **argv) {
                 exit(EXIT_FAILURE);
             }
 
-            if(read(rx, answer, 1) < 0) {
+            if(read(rx, answer,sizeof(answer)) < 0) {
                 fprintf(stderr, "[ERR]: read failed: %s\n", strerror(errno));
                 exit(EXIT_FAILURE);
             }
+            fprintf(stderr, "%s\n", answer);
             if(answer[1] == 0){
                 fprintf(stdout, "OK\n");
             }
             else{
                 char error_message[1024] = {"\0"};
-                memcpy(error_message, answer + 2, 1024);
+                memcpy(error_message, answer + 3, 1024);
                 fprintf(stdout, "ERROR %s\n", error_message);
             }
             close(rx);
